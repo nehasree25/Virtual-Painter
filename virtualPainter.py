@@ -7,24 +7,33 @@ import handDetection
 folderPath = "Paint_Images"
 myList = os.listdir(folderPath)
 
+#############################################
+
+drawColor = (255,0,255)
+xp, yp = 0, 0
+brushThickness = 15
+eraserThickness = 75
+
+############################################
+
 overLayList = []
 for imPath in myList:
     image = cv2.imread(f"{folderPath}/{imPath}")
     overLayList.append(image)
 imgCanvas = np.zeros((720,1280,3),np.uint8)
 header = overLayList[0]
+
+
 cap = cv2.VideoCapture(0)
 cap.set(3, 1280)   # Width
 cap.set(4, 720)    # Height
+
 detector = handDetection.HandDetector(detectionCon=0.85)
-drawColor = (255,0,255)
-xp, yp = 0, 0
-brushThickness = 15
-eraserThickness = 35
 while True:
     # 1. import image
     success, img = cap.read()
     img = cv2.flip(img, 1)
+
 
     # 2. Find Hand Landmarks
     img = detector.detect_hands(img)
@@ -34,13 +43,15 @@ while True:
         x1,y1 = lmList[8][1:]
         x2,y2 = lmList[12][1:]
 
+
     # 3. Check which fingers are up
     fingers = detector.fingers_up()
 
 
-    # 4. If Selection Mode - Two fingers are up
     if len(fingers)!=0:
+        # 4. If Selection Mode - Two fingers are up
         if fingers[1] and fingers[2]:
+            xp, yp = 0, 0
             cv2.rectangle(img, (x1, y1-25), (x2, y2+25), drawColor, cv2.FILLED)
             if y1 < 125:
                 if 225 < x1 < 360:
@@ -62,6 +73,8 @@ while True:
                 elif 925 < x1 < 1085:
                     header = overLayList[4] 
                     drawColor = (0,0,0)   # Eraser
+                
+
         # 5. If Drawing Mode - Index finger is up
         if fingers[1] and fingers[2]==0:
             cv2.circle(img,(x1,y1),15,drawColor,cv2.FILLED)
@@ -80,9 +93,16 @@ while True:
 
     # Setting the header image
     img[0:125, 0:1280] = header
-    img = cv2.addWeighted(img, 0.5, imgCanvas, 0.5, 0)
+
+    imgGray = cv2.cvtColor(imgCanvas, cv2.COLOR_BGR2GRAY)
+    _, imgInv = cv2.threshold(imgGray, 50, 255, cv2.THRESH_BINARY_INV)
+    imgInv = cv2.cvtColor(imgInv,cv2.COLOR_GRAY2BGR)
+    img = cv2.bitwise_and(img,imgInv)
+    img = cv2.bitwise_or(img,imgCanvas)
+
+
     cv2.imshow("Image", img)
-    cv2.imshow("Canvas", imgCanvas)
+
     key = cv2.waitKey(1)
     if key == ord('q'):
         break
